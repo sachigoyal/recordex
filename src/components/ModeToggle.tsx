@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { MoonIcon, SunIcon } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
@@ -13,46 +12,13 @@ type ModeToggleProps = {
 }
 
 export default function ModeToggle({ className, variant = "outline", size = "lg" }: ModeToggleProps) {
-  const { theme, setTheme } = useTheme();
-  const [systemTheme, setSystemTheme] = useState<"light" | "dark">("light");
+  const { resolvedTheme, setTheme } = useTheme();
 
-  useEffect(() => {
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    setSystemTheme(mediaQuery.matches ? "dark" : "light");
-
-    const handleChange = (e: MediaQueryListEvent) => {
-      setSystemTheme(e.matches ? "dark" : "light");
-    };
-
-    mediaQuery.addEventListener("change", handleChange);
-    return () => mediaQuery.removeEventListener("change", handleChange);
-  }, []);
-
-  const switchTheme = () => {
-    switch (theme) {
-      case "light":
-        setTheme("dark");
-        break;
-      case "dark":
-        setTheme("light");
-        break;
-      case "system":
-        setTheme(systemTheme === "light" ? "dark" : "light");
-        break;
-      default:
-        break;
-    }
-  };
-
-  const toggleTheme = () => {
-    if (!document.startViewTransition) switchTheme();
-    document.startViewTransition(switchTheme);
-  };
-
+  const switchTheme = () => setTheme(resolvedTheme === "dark" ? "light" : "dark");
 
   return (
     <Button
-      onClick={toggleTheme}
+      onClick={switchTheme}
       variant={variant}
       size={size}
       className={cn("aspect-square size-10", className)}

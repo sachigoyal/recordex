@@ -43,22 +43,17 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
           return;
         }
 
-        // Create audio context
         const AudioContextClass = window.AudioContext || webkitAudioContext;
         if (!AudioContextClass) return;
         audioContextRef.current = new AudioContextClass();
-
-        // Create analyser
         analyserRef.current = audioContextRef.current.createAnalyser();
         analyserRef.current.fftSize = 256;
         analyserRef.current.smoothingTimeConstant = 0.8;
 
-        // Create source from stream
         sourceRef.current =
           audioContextRef.current.createMediaStreamSource(stream);
         sourceRef.current.connect(analyserRef.current);
 
-        // Start visualization
         draw();
       } catch (error) {
         console.error("Error setting up audio visualization:", error);
@@ -88,7 +83,6 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
 
     analyserRef.current = null;
 
-    // Clear canvas
     const canvas = canvasRef.current;
     if (canvas) {
       const ctx = canvas.getContext("2d");
@@ -113,17 +107,14 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
 
       analyserRef.current.getByteFrequencyData(dataArray);
 
-      // Clear canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Draw waveform
       const barWidth = canvas.width / bufferLength;
       let x = 0;
 
       for (let i = 0; i < bufferLength; i++) {
         const barHeight = ((dataArray[i] || 0) / 255) * canvas.height * 0.8;
 
-        // Create gradient for bars
         const gradient = ctx.createLinearGradient(
           0,
           canvas.height,

@@ -20,6 +20,7 @@ export const MicrophoneSelector: React.FC<MicrophoneSelectorProps> = ({
   disabled = false
 }) => {
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+  const [defaultDevice, setDefaultDevice] = useState<MediaDeviceInfo | null>(null);
 
   useEffect(() => {
     const getDevices = async () => {
@@ -32,6 +33,10 @@ export const MicrophoneSelector: React.FC<MicrophoneSelectorProps> = ({
           device.deviceId !== 'communications'
         );
         setDevices(audioInputs);
+        const defaultDeviceInfo = deviceList.find(device => 
+          device.kind === 'audioinput' && device.deviceId === 'default'
+        );
+        setDefaultDevice(defaultDeviceInfo || null);
       } catch (error) {
         console.error('Error getting audio devices:', error);
       }
@@ -60,7 +65,12 @@ export const MicrophoneSelector: React.FC<MicrophoneSelectorProps> = ({
         <SelectItem value="default">
           <div className="flex items-center space-x-2 cursor-pointer">
             <Mic className="w-4 h-4" />
-            <span>Default Microphone</span>
+            <span>
+              {defaultDevice?.label 
+                ? defaultDevice.label 
+                : 'Default Microphone'
+              }
+            </span>
           </div>
         </SelectItem>
         {devices.map((device) => (

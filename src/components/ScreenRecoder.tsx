@@ -405,7 +405,7 @@ const ScreenRecorderApp = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-1">
-      <div className="mb-8 text-center">
+      <div className="mb-8 text-center mr-10">
         <div className="flex items-center justify-center space-x-4">
           <div className="flex flex-col items-center">
             <div className="w-14 h-14 bg-foreground/5 border-foreground/10 rounded-xl flex items-center justify-center">

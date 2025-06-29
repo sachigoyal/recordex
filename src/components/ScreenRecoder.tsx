@@ -42,12 +42,14 @@ const ScreenRecorderApp = () => {
     }
 
     const supportedTypes = [
+      'video/mp4;codecs=avc1.64002A,mp4a.40.2', 
+      'video/mp4;codecs=avc1.640028,mp4a.40.2', 
+      'video/mp4;codecs=avc1.42E01E,mp4a.40.2', 
+      'video/mp4;codecs=h264,aac',
+      'video/mp4',
       'video/webm;codecs=vp9,opus',
       'video/webm;codecs=vp8,opus',
-      'video/webm',
-      'video/mp4;codecs=h264,aac',
-      'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
-      'video/mp4'
+      'video/webm'
     ];
 
     for (const type of supportedTypes) {
@@ -163,13 +165,17 @@ const ScreenRecorderApp = () => {
                   echoCancellation: true,
                   noiseSuppression: true,
                   autoGainControl: true,
-                  sampleRate: 48000
+                  sampleRate: 48000,
+                  channelCount: 2,
+                  sampleSize: 16
                 }
               : {
                   echoCancellation: true,
                   noiseSuppression: true,
                   autoGainControl: true,
-                  sampleRate: 48000
+                  sampleRate: 48000,
+                  channelCount: 2,
+                  sampleSize: 16
                 }
           };
           currentMicStream = await navigator.mediaDevices.getUserMedia(micConstraints);
@@ -183,15 +189,18 @@ const ScreenRecorderApp = () => {
 
       const displayMediaOptions: DisplayMediaStreamOptions = {
         video: {
-          width: { ideal: 1920, max: 2560 },
-          height: { ideal: 1080, max: 1440 },
-          frameRate: { ideal: 30, max: 60 }
+          width: { ideal: 2560, max: 3840 }, 
+          height: { ideal: 1440, max: 2160 },
+          frameRate: { ideal: 60, max: 60 },
+          facingMode: 'environment'
         },
         audio: includeSystemAudio ? {
           echoCancellation: false,
           noiseSuppression: false,
           autoGainControl: false,
-          sampleRate: 48000
+          sampleRate: 48000,
+          channelCount: 2,
+          sampleSize: 16
         } : false
       };
 
@@ -226,12 +235,24 @@ const ScreenRecorderApp = () => {
       const width = settings?.width || 1920;
       const height = settings?.height || 1080;
       const pixelCount = width * height;
-      const videoBitrate = Math.min(Math.max(pixelCount * 0.1 * 30, 2000000), 8000000);
+      
+      let videoBitrate: number;
+      if (pixelCount >= 3840 * 2160) { 
+        videoBitrate = 25000000; 
+      } else if (pixelCount >= 2560 * 1440) {
+        videoBitrate = 16000000; 
+      } else if (pixelCount >= 1920 * 1080) {
+        videoBitrate = 8000000;
+      } else {
+        videoBitrate = 5000000; 
+      }
+      
+      const audioBitrate = 320000;
 
       const mediaRecorder = new MediaRecorder(finalStream, {
         mimeType: mimeType,
         videoBitsPerSecond: videoBitrate,
-        audioBitsPerSecond: 128000
+        audioBitsPerSecond: audioBitrate
       });
 
       mediaRecorderRef.current = mediaRecorder;
@@ -239,21 +260,18 @@ const ScreenRecorderApp = () => {
       const chunks: Blob[] = [];
 
       mediaRecorder.ondataavailable = (event) => {
-        console.log('Data available, size:', event.data.size);
         if (event.data.size > 0) {
           chunks.push(event.data);
         }
       };
 
       mediaRecorder.onstop = () => {
-        console.log('MediaRecorder stopped, chunks:', chunks.length);
         setRecordedChunks(chunks);
         setIsRecording(false);
         
         if (chunks.length > 0) {
           const blobType = mimeType || 'video/webm';
           const blob = new Blob(chunks, { type: blobType });
-          console.log('Created blob:', blob.size, 'bytes, type:', blob.type);
           const url = URL.createObjectURL(blob);
           setPreviewUrl(url);
         }
@@ -275,7 +293,6 @@ const ScreenRecorderApp = () => {
       };
 
       mediaRecorder.onerror = (event) => {
-        console.error('MediaRecorder error:', event);
         setError('Recording error occurred. Please try again.');
       };
 
@@ -286,11 +303,8 @@ const ScreenRecorderApp = () => {
         });
       }
 
-      mediaRecorder.start(100);
+      mediaRecorder.start(1000); 
       setIsRecording(true);
-
-      console.log('Recording started with mimeType:', mimeType);
-
     } catch (err) {
       console.error('Error starting recording:', err);
       if (err instanceof Error) {
@@ -325,19 +339,24 @@ const ScreenRecorderApp = () => {
 
   const downloadRecording = () => {
     if (recordedChunks.length === 0) return;
-    const blobType = mimeType || 'video/webm';
+    const blobType = mimeType || 'video/mp4';
     const blob = new Blob(recordedChunks, { type: blobType });
-    let extension = 'webm';
-    if (mimeType.includes('mp4')) {
-      extension = 'mp4';
-    } else if (mimeType.includes('webm')) {
+    
+    let extension = 'mp4'; 
+    if (mimeType.includes('webm')) {
       extension = 'webm';
+    } else if (mimeType.includes('mp4')) {
+      extension = 'mp4';
     }
 
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `screen-recording-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.${extension}`;
+    
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+    const qualityTag = mimeType.includes('mp4') ? 'MP4' : 'WebM';
+    a.download = `screen-recording-${qualityTag}-${timestamp}.${extension}`;
+    
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -409,7 +428,7 @@ const ScreenRecorderApp = () => {
                 <span>Recording Preview</span>
               </DialogTitle>
             </DialogHeader>
-            <div className="p-4">
+            <div>
               <video
                 ref={videoRef}
                 src={previewUrl}
@@ -442,7 +461,7 @@ const ScreenRecorderApp = () => {
           <Alert>
             <Waves className="h-4 w-4" />
             <AlertDescription>
-              <span className="font-medium">Tip:</span> Select a browser tab when prompted to capture system audio.
+              <span className="font-medium">Tip: Select a browser tab when prompted to capture system audio.</span>
             </AlertDescription>
           </Alert>
         )}
@@ -500,6 +519,7 @@ const ScreenRecorderApp = () => {
                     checked={includeSystemAudio}
                     onCheckedChange={setIncludeSystemAudio}
                     disabled={isRecording}
+                    className='cursor-pointer'
                   />
                 </div>
 
@@ -517,6 +537,7 @@ const ScreenRecorderApp = () => {
                     checked={includeMicrophone}
                     onCheckedChange={setIncludeMicrophone}
                     disabled={isRecording}
+                    className='cursor-pointer'
                   />
                 </div>
               </div>
@@ -550,7 +571,7 @@ const ScreenRecorderApp = () => {
               {!isRecording ? (
                 <Button
                   onClick={startRecording}
-                  className="w-full text-base font-medium"
+                  className="w-full text-base font-medium cursor-pointer"
                   size="lg"
                 >
                   <Play className="w-5 h-5" />
@@ -560,7 +581,7 @@ const ScreenRecorderApp = () => {
                 <Button
                   onClick={stopRecording}
                   variant="destructive"
-                  className="w-full text-base font-medium"
+                  className="w-full text-base font-medium cursor-pointer"
                   size="lg"
                 >
                   <Square className="w-5 h-5" />
@@ -608,7 +629,7 @@ const ScreenRecorderApp = () => {
                 <Button
                   onClick={openPreview}
                   variant="outline"
-                  className="flex items-center justify-center"
+                  className="flex items-center justify-center cursor-pointer"
                 >
                   <Eye className="w-4 h-4" />
                   Preview
@@ -616,7 +637,7 @@ const ScreenRecorderApp = () => {
                 
                 <Button
                   onClick={downloadRecording}
-                  className="flex items-center justify-center"
+                  className="flex items-center justify-center cursor-pointer"
                 >
                   <Download className="w-4 h-4" />
                   Download
@@ -625,7 +646,7 @@ const ScreenRecorderApp = () => {
                 <Button
                   onClick={clearRecording}
                   variant="outline"
-                  className="flex items-center justify-center"
+                  className="flex items-center justify-center cursor-pointer"
                 >
                   <MonitorX className="w-4 h-4" />
                   Clear

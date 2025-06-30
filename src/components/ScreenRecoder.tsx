@@ -61,23 +61,18 @@ const ScreenRecorderApp = () => {
       </div>
 
       <div className="w-full max-w-2xl space-y-6">
-        {/* Video Preview Dialog */}
         <VideoPreviewDialog
           isOpen={showPreview}
           onOpenChange={setShowPreview}
           previewUrl={recording.previewUrl}
           onError={recording.setError}
         />
-
-        {/* Error Alert */}
         {recording.error && (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{recording.error}</AlertDescription>
           </Alert>
         )}
-
-        {/* System Audio Tip */}
         {includeSystemAudio && !recording.isRecording && (
           <Alert>
             <Waves className="h-4 w-4" />
@@ -86,8 +81,6 @@ const ScreenRecorderApp = () => {
             </AlertDescription>
           </Alert>
         )}
-
-        {/* Main Recording Card */}
         <Card>
           <CardHeader>
             <RecordingStatus
@@ -117,8 +110,6 @@ const ScreenRecorderApp = () => {
             />
           </CardContent>
         </Card>
-
-        {/* Recording Results */}
         {recording.recordedChunks.length > 0 && !recording.isRecording && (
           <RecordingResults
             recordingTime={recording.recordingTime}

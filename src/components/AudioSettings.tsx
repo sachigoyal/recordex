@@ -3,6 +3,7 @@ import { Settings, Mic } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { MicrophoneSelector } from '@/components/MicrophoneSelector';
 import { AudioVisualizer } from '@/components/AudioVisualizer';
+import { isErrored } from 'stream';
 
 interface AudioSettingsProps {
   includeSystemAudio: boolean;
@@ -82,7 +83,7 @@ export const AudioSettings: React.FC<AudioSettingsProps> = ({
               onMicrophoneSelect={onMicrophoneSelect}
               disabled={isRecording}
             />
-            {micStream && (
+            {micStream && isRecording && (
               <AudioVisualizer
                 stream={micStream}
                 isActive={isRecording}

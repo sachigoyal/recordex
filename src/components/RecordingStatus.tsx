@@ -1,6 +1,7 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Clock, Waves } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface RecordingStatusProps {
   isRecording: boolean;
@@ -26,15 +27,14 @@ export const RecordingStatus: React.FC<RecordingStatusProps> = ({
       <div className="flex items-center space-x-1">
         <Badge 
           variant={isRecording ? "default" : hasRecording ? "secondary" : "outline"}
-          className={`px-3 py-1.5 ${isRecording ? 'animate-pulse' : ''}`}
+          className="px-3 py-1.5"
         >
-          <div className={`w-2 h-2 rounded-full mr-1 mt-0.5 ${
-            isRecording 
-              ? 'bg-red-500 animate-pulse' 
-              : hasRecording 
-                ? 'bg-green-500' 
-                : 'bg-muted-foreground'
-          }`} />
+          <div className={cn(
+            "w-2 h-2 rounded-full mr-1 mt-0.5",
+            isRecording && "bg-red-500 animate-pulse",
+            hasRecording && !isRecording && "bg-green-500",
+            !isRecording && !hasRecording && "bg-muted-foreground"
+          )} />
           {isRecording ? 'Recording' : hasRecording ? 'Complete' : 'Ready'}
           {isRecording && hasSystemAudio && (
             <Waves className="w-3 h-3 ml-1 animate-pulse" />

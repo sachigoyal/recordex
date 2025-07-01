@@ -47,14 +47,14 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
         if (!AudioContextClass) return;
         audioContextRef.current = new AudioContextClass();
         analyserRef.current = audioContextRef.current.createAnalyser();
-        analyserRef.current.fftSize = 256;
-        analyserRef.current.smoothingTimeConstant = 0.8;
+        analyserRef.current.fftSize = 512;
+        analyserRef.current.smoothingTimeConstant = 0.3;
 
         sourceRef.current =
           audioContextRef.current.createMediaStreamSource(stream);
         sourceRef.current.connect(analyserRef.current);
 
-        draw();
+        themeObserverCleanupRef.current = draw();
       } catch (error) {
         console.error("Error setting up audio visualization:", error);
       }
@@ -64,6 +64,8 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
 
     return cleanup;
   }, [stream, isActive]);
+
+  const themeObserverCleanupRef = useRef<(() => void) | null>(null);
 
   const cleanup = () => {
     if (animationRef.current) {
@@ -83,6 +85,11 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
 
     analyserRef.current = null;
 
+    if (themeObserverCleanupRef.current) {
+      themeObserverCleanupRef.current();
+      themeObserverCleanupRef.current = null;
+    }
+
     const canvas = canvasRef.current;
     if (canvas) {
       const ctx = canvas.getContext("2d");
@@ -93,47 +100,107 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
   };
 
   const draw = () => {
-    if (!analyserRef.current || !canvasRef.current) return;
+    if (!analyserRef.current || !canvasRef.current) return () => {};
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    if (!ctx) return () => {};
+
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
 
     const bufferLength = analyserRef.current.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
+
+    const getCurrentColors = () => {
+      const computedStyle = getComputedStyle(document.documentElement);
+      return {
+        primary: computedStyle.getPropertyValue('--color-primary').trim(),
+        foreground: computedStyle.getPropertyValue('--color-foreground').trim()
+      };
+    };
+
+    let currentColors = getCurrentColors();
+
+    const themeObserver = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === 'attributes' && 
+            (mutation.attributeName === 'class' || mutation.attributeName === 'data-theme')) {
+          currentColors = getCurrentColors();
+        }
+      });
+    });
+
+    themeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class', 'data-theme']
+    });
 
     const drawFrame = () => {
       if (!analyserRef.current || !isActive) return;
 
       analyserRef.current.getByteFrequencyData(dataArray);
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.clearRect(0, 0, rect.width, rect.height);
 
-      const barWidth = canvas.width / bufferLength;
-      let x = 0;
+      const visibleBars = 80;
+      const barWidth = 2;
+      const barSpacing = rect.width / visibleBars;
+      
+      const normalizedData = new Array(visibleBars);
+      for (let i = 0; i < visibleBars; i++) {
+        const logIndex = Math.floor(Math.pow(i / (visibleBars - 1), 1.5) * (bufferLength - 1));
+        
+        let sum = 0;
+        let count = 0;
+        const range = Math.max(1, Math.floor(bufferLength / (visibleBars * 2)));
+        
+        for (let j = Math.max(0, logIndex - range); j <= Math.min(bufferLength - 1, logIndex + range); j++) {
+          sum += dataArray[j] || 0;
+          count++;
+        }
+        
+        normalizedData[i] = count > 0 ? sum / count : 0;
+      }
 
-      for (let i = 0; i < bufferLength; i++) {
-        const barHeight = ((dataArray[i] || 0) / 255) * canvas.height * 0.8;
-
-        const gradient = ctx.createLinearGradient(
-          0,
-          canvas.height,
-          0,
-          canvas.height - barHeight
-        );
-        gradient.addColorStop(0, "#3b82f6");
-        gradient.addColorStop(1, "#3b82f680");
+      for (let i = 0; i < visibleBars; i++) {
+        const x = i * barSpacing + (barSpacing - barWidth) / 2;
+        
+        const rawHeight = (normalizedData[i] / 255) * rect.height * 0.9;
+        const barHeight = Math.max(rawHeight, 2);
+        
+        const gradient = ctx.createLinearGradient(0, rect.height, 0, rect.height - barHeight);
+        
+        const primaryRgb = currentColors.primary.match(/oklch\(([\d.]+)\s+([\d.]+)\s+([\d.]+)\)/);
+        if (primaryRgb) {
+          const [, l, c, h] = primaryRgb;
+          gradient.addColorStop(0, `oklch(${l} ${c} ${h} / 0.9)`);
+          gradient.addColorStop(0.6, `oklch(${l} ${c} ${h} / 0.6)`);
+          gradient.addColorStop(1, `oklch(${l} ${c} ${h} / 0.2)`);
+        } else {
+          gradient.addColorStop(0, currentColors.primary);
+          gradient.addColorStop(1, currentColors.foreground);
+        }
 
         ctx.fillStyle = gradient;
-        ctx.fillRect(x, canvas.height - barHeight, barWidth - 1, barHeight);
-
-        x += barWidth;
+        
+        ctx.beginPath();
+        ctx.roundRect(x, rect.height - barHeight, barWidth, barHeight, [1, 1, 0, 0]);
+        ctx.fill();
       }
 
       animationRef.current = requestAnimationFrame(drawFrame);
     };
 
     drawFrame();
+
+    return () => {
+      themeObserver.disconnect();
+    };
   };
 
   if (!isSupported) {
@@ -152,13 +219,14 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
   }
 
   return (
-    <div className={cn("p-0", className)}>
+    <div className={cn("relative p-0", className)}>
       <canvas
         ref={canvasRef}
-        width={300}
-        height={height}
-        className="w-full"
-        style={{ height: `${height}px` }}
+        className="w-full block"
+        style={{ 
+          height: `${height}px`,
+          imageRendering: 'crisp-edges'
+        }}
       />
       {!isActive && (
         <div

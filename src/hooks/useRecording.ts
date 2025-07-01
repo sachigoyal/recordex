@@ -17,7 +17,6 @@ export interface UseRecordingOptions {
 }
 
 export interface UseRecordingReturn {
-  // State
   isRecording: boolean;
   recordedChunks: Blob[];
   recordingTime: number;
@@ -28,7 +27,6 @@ export interface UseRecordingReturn {
   previewUrl: string;
   micStream: MediaStream | null;
   
-  // Actions
   startRecording: () => Promise<void>;
   stopRecording: () => void;
   downloadRecording: () => void;
@@ -55,7 +53,6 @@ export const useRecording = (options: UseRecordingOptions): UseRecordingReturn =
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const audioMixerRef = useRef(createAudioMixer());
 
-  // Check browser support and set mime type
   useEffect(() => {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
       setIsSupported(false);
@@ -67,7 +64,6 @@ export const useRecording = (options: UseRecordingOptions): UseRecordingReturn =
     setMimeType(supportedMimeType);
   }, []);
 
-  // Handle recording timer
   useEffect(() => {
     if (isRecording) {
       timerRef.current = setInterval(() => {
@@ -86,7 +82,6 @@ export const useRecording = (options: UseRecordingOptions): UseRecordingReturn =
     };
   }, [isRecording]);
 
-  // Cleanup preview URL
   useEffect(() => {
     return () => {
       if (previewUrl) {
@@ -111,7 +106,6 @@ export const useRecording = (options: UseRecordingOptions): UseRecordingReturn =
         return;
       }
 
-      // Setup microphone if needed
       let currentMicStream: MediaStream | null = null;
       if (includeMicrophone) {
         try {
@@ -125,7 +119,6 @@ export const useRecording = (options: UseRecordingOptions): UseRecordingReturn =
         }
       }
 
-      // Get display stream
       const displayMediaOptions = getDisplayMediaOptions(includeSystemAudio);
       const displayStream = await navigator.mediaDevices.getDisplayMedia(displayMediaOptions);
 
@@ -136,7 +129,6 @@ export const useRecording = (options: UseRecordingOptions): UseRecordingReturn =
         setError('System audio not captured. Make sure to select "Share audio" and choose a browser tab (not entire screen) for best audio capture.');
       }
 
-      // Setup final stream with audio mixing if needed
       let finalStream: MediaStream;
 
       if ((hasAudio || includeSystemAudio) && includeMicrophone && currentMicStream) {
@@ -161,7 +153,6 @@ export const useRecording = (options: UseRecordingOptions): UseRecordingReturn =
 
       streamRef.current = finalStream;
 
-      // Calculate optimal bitrates
       const firstVideoTrack = finalStream.getVideoTracks()[0];
       const settings = firstVideoTrack?.getSettings();
       const videoSettings: VideoSettings = {
@@ -172,7 +163,6 @@ export const useRecording = (options: UseRecordingOptions): UseRecordingReturn =
       
       const bitrates = calculateBitrates(videoSettings);
 
-      // Setup MediaRecorder
       const mediaRecorder = new MediaRecorder(finalStream, {
         mimeType: mimeType,
         videoBitsPerSecond: bitrates.video,
@@ -210,7 +200,6 @@ export const useRecording = (options: UseRecordingOptions): UseRecordingReturn =
         setError(errorMsg);
       };
 
-      // Handle video track ending
       const videoTrack = finalStream.getVideoTracks()[0];
       if (videoTrack) {
         videoTrack.addEventListener('ended', () => {
@@ -292,7 +281,6 @@ export const useRecording = (options: UseRecordingOptions): UseRecordingReturn =
   };
 
   return {
-    // State
     isRecording,
     recordedChunks,
     recordingTime,
@@ -303,7 +291,6 @@ export const useRecording = (options: UseRecordingOptions): UseRecordingReturn =
     previewUrl,
     micStream,
     
-    // Actions
     startRecording,
     stopRecording,
     downloadRecording,

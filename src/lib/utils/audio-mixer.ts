@@ -21,10 +21,9 @@ export class AudioMixer {
       throw new Error('AudioContext not supported');
     }
 
-    // Platform-specific audio context settings
     const isWindowsPlatform = isWindows();
     const contextOptions = isWindowsPlatform ? {
-      sampleRate: 44100, // More compatible sample rate for Windows
+      sampleRate: 44100,
       latencyHint: 'balanced' as AudioContextLatencyCategory
     } : {
       sampleRate: 48000,
@@ -36,7 +35,6 @@ export class AudioMixer {
 
     let hasMixedAudio = false;
 
-    // Mix system audio
     if (includeSystemAudio) {
       const systemAudioTracks = displayStream.getAudioTracks();
       if (systemAudioTracks.length > 0) {
@@ -46,7 +44,7 @@ export class AudioMixer {
         
         if (isWindowsPlatform) {
           const gainNode = this.audioContext.createGain();
-          gainNode.gain.value = 0.8; // Reduce gain to prevent clipping
+          gainNode.gain.value = 0.8;
           systemSource.connect(gainNode);
           gainNode.connect(this.mixer);
         } else {
@@ -56,7 +54,6 @@ export class AudioMixer {
       }
     }
 
-    // Mix microphone audio
     if (includeMicrophone && microphoneStream) {
       const micAudioTracks = microphoneStream.getAudioTracks();
       if (micAudioTracks.length > 0) {
@@ -66,7 +63,7 @@ export class AudioMixer {
         
         if (isWindowsPlatform) {
           const micGainNode = this.audioContext.createGain();
-          micGainNode.gain.value = 0.7; // Slightly lower for mic
+          micGainNode.gain.value = 0.7;
           micSource.connect(micGainNode);
           micGainNode.connect(this.mixer);
         } else {
@@ -76,7 +73,6 @@ export class AudioMixer {
       }
     }
 
-    // Combine video and mixed audio tracks
     const videoTracks = displayStream.getVideoTracks();
     const finalTracks = [...videoTracks];
     

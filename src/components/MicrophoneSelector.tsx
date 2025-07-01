@@ -67,7 +67,6 @@ export const MicrophoneSelector: React.FC<MicrophoneSelectorProps> = ({
   const handleMicrophoneChange = (value: string) => {
     const deviceId = value === "default" ? null : value;
     
-    // Save to localStorage
     localStorage.setItem(MICROPHONE_STORAGE_KEY, value);
     
     onMicrophoneSelect(deviceId);

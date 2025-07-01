@@ -14,6 +14,8 @@ interface MicrophoneSelectorProps {
   disabled?: boolean;
 }
 
+const MICROPHONE_STORAGE_KEY = 'recordex-selected-microphone';
+
 export const MicrophoneSelector: React.FC<MicrophoneSelectorProps> = ({
   onMicrophoneSelect,
   selectedMicId,
@@ -37,6 +39,18 @@ export const MicrophoneSelector: React.FC<MicrophoneSelectorProps> = ({
           device.kind === 'audioinput' && device.deviceId === 'default'
         );
         setDefaultDevice(defaultDeviceInfo || null);
+
+        if (!selectedMicId) {
+          const savedMicId = localStorage.getItem(MICROPHONE_STORAGE_KEY);
+          if (savedMicId) {
+            const deviceExists = savedMicId === 'default' || 
+              audioInputs.some(device => device.deviceId === savedMicId);
+            
+            if (deviceExists) {
+              onMicrophoneSelect(savedMicId === 'default' ? null : savedMicId);
+            }
+          }
+        }
       } catch (error) {
         console.error('Error getting audio devices:', error);
       }
@@ -48,12 +62,21 @@ export const MicrophoneSelector: React.FC<MicrophoneSelectorProps> = ({
     return () => {
       navigator.mediaDevices.removeEventListener('devicechange', getDevices);
     };
-  }, []);
+  }, [selectedMicId, onMicrophoneSelect]);
+
+  const handleMicrophoneChange = (value: string) => {
+    const deviceId = value === "default" ? null : value;
+    
+    // Save to localStorage
+    localStorage.setItem(MICROPHONE_STORAGE_KEY, value);
+    
+    onMicrophoneSelect(deviceId);
+  };
 
   return (
     <Select
       value={selectedMicId || "default"}
-      onValueChange={(value) => onMicrophoneSelect(value === "default" ? null : value)}
+      onValueChange={handleMicrophoneChange}
       disabled={disabled}
     >
       <SelectTrigger className="w-full cursor-pointer">
